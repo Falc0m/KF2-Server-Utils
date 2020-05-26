@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -19,13 +20,13 @@ public class WorkshopTask {
     private static final String STEAMCMD_DIR = "steamcmd\\";
     private static final String BASIC_PARAMS = STEAMCMD_DIR + "steamcmd.exe +login anonymous +set_download_throttle 2 false +workshop_download_item 232090 ";
 
-    public final CompletableFuture<List<File>> checkMapName(String itemId) {
+    public final CompletableFuture<List<File>> checkMapName(final String itemId) {
         try {
             System.out.println("Starting new thread");
             // 1. Execute bash command
             Process process = Runtime.getRuntime().exec(BASIC_PARAMS + itemId);
             // 2. Sleep till folder for that item has been created (meaning file name has been set)
-            ConditionalSleep.sleepUntil(() -> new File(STEAMCMD_DIR + "steamapps\\workshop\\downloads\\232090\\" + itemId).exists(), 20_000, 200);
+            boolean foundDir = ConditionalSleep.sleepUntil(() -> new File(STEAMCMD_DIR + "steamapps\\workshop\\downloads\\232090\\" + itemId).exists(), 20_000, 200);
             // 3. We dont need the process anymore so destroy it -> it should kill also the steamcmd bash app
             process.destroyForcibly();
 
@@ -33,6 +34,12 @@ public class WorkshopTask {
             // StreamGobbler streamGobbler =
             // new StreamGobbler(process.getInputStream(), System.out::println);
             // Executors.newSingleThreadExecutor().submit(streamGobbler);
+
+            // 4. Check if ConditionalSleep returned with true or false
+            if (!foundDir) {
+                System.out.println("Couldn't find directory for item: " +itemId +" - item is probably private or your internet connection is not sufficient");
+                return CompletableFuture.completedFuture(Collections.emptyList());
+            }
 
         } catch (IOException e) {
             e.printStackTrace();
